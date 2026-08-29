@@ -24,12 +24,6 @@ x-api-env: &api-env
   ADMIN_API_TOKEN: local-operator-token-change-me
   ADMIN_USERNAME: judge
   ADMIN_PASSWORD: takaflow-demo-2026
-  # Demo override. The shipped default is 3 transfers per account per minute, which is the right
-  # product behaviour but makes the 500-way concurrency burst (scripts/gate.mjs C1) unrunnable —
-  # that burst IS one account moving fast, which the limiter exists to stop. Raised here so the
-  # ledger proof can be demonstrated; drop it back to 3 with PATCH /admin/policy/velocity to show
-  # the limiter itself.
-  VELOCITY_MAX_TRANSFERS: "1000"
 
 services:
   db:
