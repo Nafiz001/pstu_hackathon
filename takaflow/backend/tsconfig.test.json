@@ -1,0 +1,10 @@
+{
+  // Type-checks tests alongside src. Separate from tsconfig.json because the build has a
+  // rootDir of src/ and must not emit test files into dist/.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "noEmit": true
+  },
+  "include": ["src/**/*.ts", "tests/**/*.ts", "vitest.config.ts"]
+}

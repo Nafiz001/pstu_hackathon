@@ -1,0 +1,7 @@
+# Shell scripts and SQL run inside Linux containers. A CRLF here becomes a syntax error
+# there ('set -e': illegal option), so line endings are pinned regardless of platform.
+* text=auto eol=lf
+*.sh text eol=lf
+*.sql text eol=lf
+Dockerfile text eol=lf
+*.yml text eol=lf

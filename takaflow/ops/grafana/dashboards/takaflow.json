@@ -1,0 +1,113 @@
+{
+  "uid": "takaflow-money",
+  "title": "TakaFlow — Money Movement",
+  "tags": ["takaflow"],
+  "timezone": "browser",
+  "refresh": "5s",
+  "time": { "from": "now-15m", "to": "now" },
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Books balance",
+      "description": "1 = every money invariant holds. Anything else is an incident, not a degradation.",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "targets": [{ "expr": "min(takaflow_reconciliation_ok)", "refId": "A" }],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "VIOLATED", "color": "red", "index": 0 } } },
+            { "type": "value", "options": { "1": { "text": "OK", "color": "green", "index": 1 } } }
+          ],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }] }
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Ledger net (poisha)",
+      "description": "Signed sum of every account balance. MUST be zero.",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "targets": [{ "expr": "max(takaflow_ledger_net_minor)", "refId": "A" }],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }] }
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Transfers committed / s",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "targets": [{ "expr": "sum(rate(takaflow_transfers_total{outcome=\"committed\"}[1m]))", "refId": "A" }]
+    },
+    {
+      "type": "stat",
+      "title": "Oldest undelivered event (s)",
+      "description": "Async pipeline lag. Age matters more than backlog size.",
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "targets": [{ "expr": "max(takaflow_outbox_oldest_pending_seconds)", "refId": "A" }],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "orange", "value": 5 }, { "color": "red", "value": 30 }] }
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Transfer latency (p50 / p95 / p99)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "targets": [
+        { "expr": "histogram_quantile(0.50, sum by (le) (rate(takaflow_http_request_duration_seconds_bucket{route=\"/api/v1/transfers\"}[1m])))", "legendFormat": "p50", "refId": "A" },
+        { "expr": "histogram_quantile(0.95, sum by (le) (rate(takaflow_http_request_duration_seconds_bucket{route=\"/api/v1/transfers\"}[1m])))", "legendFormat": "p95", "refId": "B" },
+        { "expr": "histogram_quantile(0.99, sum by (le) (rate(takaflow_http_request_duration_seconds_bucket{route=\"/api/v1/transfers\"}[1m])))", "legendFormat": "p99", "refId": "C" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" } }
+    },
+    {
+      "type": "timeseries",
+      "title": "Transfer outcomes",
+      "description": "A refusal is a correct answer. Watch the ratio, not the absolute count.",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "targets": [
+        { "expr": "sum by (outcome) (rate(takaflow_transfers_total[1m]))", "legendFormat": "{{outcome}}", "refId": "A" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Lock hold time (transaction duration)",
+      "description": "How long account rows stay locked. The number that decides how well this scales under contention.",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "targets": [
+        { "expr": "histogram_quantile(0.95, sum by (le) (rate(takaflow_transaction_duration_seconds_bucket[1m])))", "legendFormat": "p95", "refId": "A" },
+        { "expr": "histogram_quantile(0.99, sum by (le) (rate(takaflow_transaction_duration_seconds_bucket[1m])))", "legendFormat": "p99", "refId": "B" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" } }
+    },
+    {
+      "type": "timeseries",
+      "title": "Connection pool",
+      "description": "'waiting' above zero is the earliest sign of saturation — it moves before latency does.",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "targets": [
+        { "expr": "sum by (state) (takaflow_db_pool_connections)", "legendFormat": "{{state}}", "refId": "A" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Concurrency conflicts and abandoned transactions",
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 20 },
+      "targets": [
+        { "expr": "sum by (sqlstate) (rate(takaflow_transaction_retries_total[1m]))", "legendFormat": "retry {{sqlstate}}", "refId": "A" },
+        { "expr": "sum(rate(takaflow_transaction_deadline_exceeded_total[1m]))", "legendFormat": "deadline exceeded", "refId": "B" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "HTTP status classes",
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 20 },
+      "targets": [
+        { "expr": "sum by (status) (rate(takaflow_http_requests_total[1m]))", "legendFormat": "{{status}}", "refId": "A" }
+      ]
+    }
+  ]
+}

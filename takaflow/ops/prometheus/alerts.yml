@@ -1,0 +1,87 @@
+# Alert rules, written against the SLOs this system claims.
+#
+# The first rule is the only one that would wake someone at 3am. Everything below it is a
+# degradation; the first is a correctness violation, and there is no acceptable duration for it.
+
+groups:
+  - name: takaflow-correctness
+    rules:
+      - alert: MoneyInvariantViolated
+        # No `for:` clause. A single scrape showing the books do not balance is an incident;
+        # waiting to see whether it persists would only delay the response.
+        expr: takaflow_reconciliation_ok < 1
+        labels:
+          severity: critical
+        annotations:
+          summary: "A money invariant is violated — the ledger no longer explains the balances"
+          runbook: "docs/runbook.md#reconciliation-failure"
+
+      - alert: LedgerNetNonZero
+        expr: takaflow_ledger_net_minor != 0
+        labels:
+          severity: critical
+        annotations:
+          summary: "Sum of all account balances is {{ $value }} poisha, not 0 — money was created or destroyed"
+          runbook: "docs/runbook.md#reconciliation-failure"
+
+  - name: takaflow-availability
+    rules:
+      - alert: TransferLatencyHigh
+        # SLO: p99 transfer under 250ms.
+        expr: |
+          histogram_quantile(0.99,
+            sum by (le) (rate(takaflow_http_request_duration_seconds_bucket{route="/api/v1/transfers"}[5m]))
+          ) > 0.25
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "p99 transfer latency is {{ $value }}s, above the 250ms objective"
+
+      - alert: ErrorRateHigh
+        expr: |
+          sum(rate(takaflow_http_requests_total{status=~"5.."}[5m]))
+            / sum(rate(takaflow_http_requests_total[5m])) > 0.02
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Over 2% of requests are failing with 5xx"
+
+      - alert: ConnectionPoolSaturated
+        # Requests queueing on the pool is the earliest signal of database saturation, and it
+        # shows up well before latency does.
+        expr: takaflow_db_pool_connections{state="waiting"} > 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Requests are queueing for a database connection on {{ $labels.instance }}"
+
+      - alert: TransactionDeadlinesExceeded
+        expr: rate(takaflow_transaction_deadline_exceeded_total[5m]) > 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Transactions are being abandoned on their time budget — the database path is degraded"
+
+  - name: takaflow-async
+    rules:
+      - alert: OutboxBacklogStale
+        # SLO: an event reaches its consumer within 5s. This fires on age, not count: a large
+        # backlog draining quickly is fine, a small one that is not moving is not.
+        expr: takaflow_outbox_oldest_pending_seconds > 30
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Oldest undelivered event is {{ $value }}s old — the dispatcher is not keeping up"
+
+      - alert: OutboxEventsFailed
+        expr: takaflow_outbox_backlog{status="FAILED"} > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $value }} event(s) exhausted their retries and need an operator"
+          runbook: "docs/runbook.md#poisoned-outbox-event"

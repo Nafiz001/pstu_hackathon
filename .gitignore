@@ -1,0 +1,35 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+dist/
+build/
+*.tsbuildinfo
+
+# Secrets and local configuration — .env.example is committed, .env never is
+.env
+.env.local
+.env.*.local
+
+# Test and tooling artefacts
+coverage/
+test-results/
+playwright-report/
+blob-report/
+.playwright/
+playwright/.cache/
+*.log
+npm-debug.log*
+
+# Local data
+tmp/
+.cache/
+*.local
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
