@@ -30,7 +30,8 @@ export type EventType =
   | 'SCHEDULE_FAILED'
   | 'SCHEDULE_SKIPPED'
   | 'ACCOUNT_FROZEN'
-  | 'ACCOUNT_UNFROZEN';
+  | 'ACCOUNT_UNFROZEN'
+  | 'SECURITY_ALERT';
 
 export interface OutboxEvent {
   eventType: EventType;

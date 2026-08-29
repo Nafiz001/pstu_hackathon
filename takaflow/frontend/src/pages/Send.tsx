@@ -3,6 +3,7 @@ import { ApiError, endpoints, newIdempotencyKey, type Money } from '../lib/api';
 import { useApp } from '../lib/app-state';
 import { AmountInput, Banner, Card, ErrorBanner, Field, PinPrompt, Spinner } from '../components/ui';
 import { UndoCountdown } from '../components/UndoCountdown';
+import { Toast } from '../components/Toast';
 
 /** Poisha to taka for display. Integer arithmetic — the UI does not get to use floats either. */
 const formatMinor = (minor: string): string => {
@@ -36,6 +37,7 @@ export function SendPage() {
   const [undone, setUndone] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const [sent, setSent] = useState<Sent | null>(null);
+  const [alerted, setAlerted] = useState(false);
 
   /**
    * One key per intent, minted when the form is submitted — NOT per HTTP request.
@@ -69,6 +71,7 @@ export function SendPage() {
         { toPhone: phone, amountMinor, pin, ...(note ? { note } : {}) },
         idempotencyKey,
       );
+      setAlerted(result.securityAlert === true);
       setSent({
         reference: result.transfer.reference,
         amount: result.transfer.amount,
@@ -185,6 +188,15 @@ export function SendPage() {
           </ol>
         </Card>
       </div>
+
+      {alerted && (
+        <Toast
+          kind="danger"
+          title="Security Alert: Unusual transaction detected."
+          body="Check your email. If this was not you, freeze your account in Settings."
+          onClose={() => setAlerted(false)}
+        />
+      )}
 
       {askPin && (
         <PinPrompt

@@ -15,6 +15,7 @@ import { drainOutbox } from '../../workers/outbox.dispatcher.js';
 import { expireRequests } from '../../workers/request-expiry.worker.js';
 import { drainSchedules } from '../../workers/schedule.worker.js';
 import * as adminService from './admin.service.js';
+import { getVelocityPolicy, setVelocityPolicy } from '../transfers/velocity.service.js';
 
 export async function adminRoutes(app: FastifyInstance): Promise<void> {
   app.get('/admin/reconciliation', async (_request, reply) => {
@@ -114,6 +115,42 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
       .parse(request.query);
 
     return reply.send(await adminService.searchAudit(query));
+  });
+
+  /**
+   * Read or change the fraud controls at runtime.
+   *
+   * In-memory and therefore per-instance — see the note in velocity.service.ts. Enough to tighten
+   * limits during an incident (or a demo) without a redeploy; not a substitute for the durable
+   * policy store a production system would have.
+   */
+  app.get('/admin/policy/velocity', { preHandler: requireAdmin }, async (_request, reply) => {
+    const policy = getVelocityPolicy();
+    return reply.send({
+      policy: { ...policy, alertThresholdMinor: policy.alertThresholdMinor.toString() },
+    });
+  });
+
+  app.patch('/admin/policy/velocity', { preHandler: requireAdmin }, async (request, reply) => {
+    const input = z
+      .object({
+        windowSeconds: z.number().int().min(1).max(3600).optional(),
+        maxTransfers: z.number().int().min(1).max(10_000).optional(),
+        alertThresholdMinor: z.string().regex(/^\d{1,15}$/).optional(),
+      })
+      .parse(request.body ?? {});
+
+    const policy = setVelocityPolicy({
+      ...(input.windowSeconds !== undefined ? { windowSeconds: input.windowSeconds } : {}),
+      ...(input.maxTransfers !== undefined ? { maxTransfers: input.maxTransfers } : {}),
+      ...(input.alertThresholdMinor !== undefined
+        ? { alertThresholdMinor: BigInt(input.alertThresholdMinor) }
+        : {}),
+    });
+
+    return reply.send({
+      policy: { ...policy, alertThresholdMinor: policy.alertThresholdMinor.toString() },
+    });
   });
 
   app.get('/notifications', { preHandler: requireAuth }, async (request, reply) => {

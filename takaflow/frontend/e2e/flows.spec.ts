@@ -153,6 +153,27 @@ test('the emergency freeze blocks outgoing money in one tap, and needs a PIN to 
   await expect(page.getByText('Your account is frozen.')).toBeHidden();
 });
 
+test('an unusually large transfer goes through and raises a security alert', async ({ page }) => {
+  const karim = await register(page, 'Karim Recipient');
+  await signOut(page);
+  await register(page, 'Rahim Bigspender');
+
+  await page.getByRole('link', { name: 'Send', exact: true }).click();
+  await page.getByPlaceholder('01712345678').fill(karim.phone);
+  // At the platform's per-transfer ceiling, which is where the anomaly threshold sits.
+  await page.getByPlaceholder('0.00').fill('50000');
+  await page.getByRole('button', { name: 'Review and send' }).click();
+  await page.getByPlaceholder('••••').fill(PIN);
+  await page.getByRole('button', { name: /^Send ৳/ }).click();
+
+  // Flagged, NOT blocked: the money moved and the user was warned.
+  await expect(page.getByTestId('toast')).toContainText('Security Alert: Unusual transaction detected.');
+  await expect(page.getByText(/^Sent ৳50,000.00/)).toBeVisible();
+
+  await page.getByRole('link', { name: 'Overview', exact: true }).click();
+  await expectBalance(page, '50,000.00');
+});
+
 test('the recipient can be asked for money, and paying settles it in one step', async ({ page }) => {
   const rahim = await register(page, 'Rahim Payer');
   await signOut(page);

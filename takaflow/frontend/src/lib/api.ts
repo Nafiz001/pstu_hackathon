@@ -334,10 +334,12 @@ export const endpoints = {
     input: { toPhone: string; amountMinor: string; pin: string; note?: string },
     idempotencyKey: string,
   ) =>
-    api<{ transfer: { reference: string; amount: Money; createdAt: string }; balance: Money }>(
-      '/transfers',
-      { method: 'POST', body: input, idempotencyKey },
-    ),
+    api<{
+      transfer: { reference: string; amount: Money; createdAt: string };
+      balance: Money;
+      /** Set when the amount tripped the anomaly threshold. The payment still happened. */
+      securityAlert?: boolean;
+    }>('/transfers', { method: 'POST', body: input, idempotencyKey }),
 
   history: (query: string) => api<Page<HistoryItem> & { servedBy: string }>(`/transfers${query}`),
 

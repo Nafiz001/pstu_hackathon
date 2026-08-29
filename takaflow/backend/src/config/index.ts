@@ -87,6 +87,23 @@ const schema = z.object({
    */
   ADMIN_API_TOKEN: z.string().min(16).optional(),
 
+  /**
+   * Velocity limiting: at most this many person-initiated transfers per account per window.
+   * Three in a minute is a script; a person paying three different people in a minute is rare
+   * enough that a one-minute wait is a reasonable price for stopping automated draining.
+   */
+  VELOCITY_WINDOW_SECONDS: intFromEnv(60),
+  VELOCITY_MAX_TRANSFERS: intFromEnv(3),
+  /**
+   * Transfers at or above this raise a security alert. The transfer still goes through — it is
+   * the user's money — but they are told at once.
+   *
+   * Note the relationship to MAX_TRANSFER_MINOR: the per-transfer ceiling is BDT 50,000, so a
+   * threshold of "more than BDT 50,000" could never fire. It is therefore expressed as "at or
+   * above", and it flags the largest transfers the platform permits.
+   */
+  FRAUD_ALERT_THRESHOLD_MINOR: intFromEnv(5_000_000),
+
   MAX_PIN_ATTEMPTS: intFromEnv(5),
   PIN_LOCKOUT_MINUTES: intFromEnv(15),
 

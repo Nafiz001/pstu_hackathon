@@ -20,6 +20,13 @@ const TEST_ENV = {
   PG_POOL_MAX: '40',
   /** The operator endpoints fail closed without this, which is itself one of the things tested. */
   ADMIN_API_TOKEN: 'test-operator-token-not-a-real-secret',
+  /**
+   * The concurrency and paging suites deliberately drive hundreds of transfers from one account,
+   * which is exactly what the velocity limiter exists to stop. They are not testing it, so the
+   * default is effectively off here; velocity.spec.ts sets a real limit through the operator
+   * endpoint and puts it back afterwards.
+   */
+  VELOCITY_MAX_TRANSFERS: '100000',
 } as const;
 
 // Applied to THIS process as well, not only to the workers: `globalSetup` runs in the main

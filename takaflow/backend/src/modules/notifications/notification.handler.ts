@@ -210,6 +210,28 @@ export async function handleEvent(tx: Tx, event: OutboxEventRecord): Promise<num
       return 1;
     }
 
+    /**
+     * The durable half of the security alert. The "email" is a log line in this build, but this
+     * notification is written in the same transaction as the money, so the user is told about an
+     * unusual payment even if the process dies the moment after it commits.
+     */
+    case 'SECURITY_ALERT': {
+      const userId = str(p, 'userId');
+      if (!userId) return 0;
+
+      await notify(tx, {
+        userId,
+        eventId: event.id,
+        type: 'SECURITY_ALERT',
+        payload: {
+          title: 'Security alert',
+          body: `Unusual transaction detected: BDT ${takaOf(p)} sent. If this was not you, freeze your account now.`,
+          reference: str(p, 'reference'),
+        },
+      });
+      return 1;
+    }
+
     default:
       return 0;
   }

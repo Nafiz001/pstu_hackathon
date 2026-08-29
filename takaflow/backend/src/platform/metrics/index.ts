@@ -96,6 +96,18 @@ export const scheduleRuns = new client.Counter({
   registers: [registry],
 });
 
+export const velocityBlocks = new client.Counter({
+  name: 'takaflow_velocity_blocks_total',
+  help: 'Transfers refused by the velocity limiter',
+  registers: [registry],
+});
+
+export const securityAlerts = new client.Counter({
+  name: 'takaflow_security_alerts_total',
+  help: 'Security alerts raised for unusually large transfers',
+  registers: [registry],
+});
+
 // --- sampled gauges --------------------------------------------------------
 //
 // Collected on scrape rather than on a timer: a metric nobody is reading should not be putting

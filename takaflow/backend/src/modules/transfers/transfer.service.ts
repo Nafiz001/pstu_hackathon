@@ -35,6 +35,7 @@ import { money } from '../../shared/money.js';
 import { insertAuditLog } from '../auth/auth.repo.js';
 import { verifyPin } from '../auth/pin.service.js';
 import { postDoubleEntry } from './ledger.service.js';
+import { enforceVelocity, isAnomalous, sendSecurityAlert } from './velocity.service.js';
 import * as repo from './transfer.repo.js';
 import type { CreateTransferInput } from './transfer.schemas.js';
 
@@ -45,6 +46,11 @@ export interface TransferContext {
 }
 
 export interface TransferReceipt {
+  /**
+   * Present and true when this transfer tripped the anomaly threshold. The payment happened; the
+   * flag exists so the client can tell the user their account raised an alert.
+   */
+  securityAlert?: boolean;
   transfer: {
     reference: string;
     status: 'COMPLETED';
@@ -106,6 +112,9 @@ export async function sendMoney(
     const senderAccountId = await repo.findAccountIdForUser(tx, senderUserId);
     if (!senderAccountId) throw errors.notFound('Account');
 
+    // Before anything else that costs work: is this account being driven by a script?
+    await enforceVelocity(tx, senderAccountId);
+
     const payee = await repo.findPayeeByPhone(tx, input.toPhone);
     if (!payee || payee.userStatus !== 'ACTIVE') throw errors.notFound('Recipient');
     if (payee.userId === senderUserId) throw errors.selfTransfer();
@@ -162,7 +171,36 @@ export async function sendMoney(
       requestId: context.requestId,
     });
 
+    /**
+     * An unusually large transfer is flagged, not refused.
+     *
+     * The outbox event is written inside this transaction, so the alert exists if and only if the
+     * money moved. The "email" is sent after the commit, where it cannot fail the payment.
+     */
+    const flagged = isAnomalous(posted.amountMinor);
+    if (flagged) {
+      await enqueueEvent(tx, {
+        eventType: 'SECURITY_ALERT',
+        aggregateType: 'transfer',
+        aggregateId: posted.id,
+        payload: {
+          userId: senderUserId,
+          reference: posted.reference,
+          amountMinor: posted.amountMinor.toString(),
+        },
+      });
+
+      tx.afterCommit(() =>
+        sendSecurityAlert({
+          userId: senderUserId,
+          reference: posted.reference,
+          amountMinor: posted.amountMinor,
+        }),
+      );
+    }
+
     const body: TransferReceipt = {
+      ...(flagged ? { securityAlert: true } : {}),
       transfer: {
         reference: posted.reference,
         status: 'COMPLETED',
