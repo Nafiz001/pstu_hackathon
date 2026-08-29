@@ -334,9 +334,11 @@ outright.
 
 | Suite | What it covers | Count |
 | --- | --- | --- |
-| Backend (Vitest, real Postgres) | unit · integration · concurrency · invariants · chaos | **219 tests / 20 files** |
+| Backend (Vitest, real Postgres) | unit · integration · concurrency · invariants · chaos | **237 tests / 20 files** |
 | Browser (Playwright, real API) | the journeys a judge clicks through | **12 tests** |
 | Live smoke (`scripts/smoke.mjs`) | the stack through nginx and 3 replicas | 16 checks |
+
+Last full run: **237 passed / 237, in 173s** against a real PostgreSQL 18.
 
 ```bash
 cd takaflow/backend  && npm test          # backend suite
