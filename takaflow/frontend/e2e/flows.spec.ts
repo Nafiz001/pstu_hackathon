@@ -87,6 +87,33 @@ test('sending money moves it, and both sides see the same movement', async ({ pa
   await expect(page.getByText('Rickshaw fare')).toBeVisible();
 });
 
+test('the five-second undo window cancels before anything is sent', async ({ page }) => {
+  const karim = await register(page, 'Karim Untouched');
+  await signOut(page);
+  await register(page, 'Rahim Undoer');
+
+  await page.getByRole('link', { name: 'Send', exact: true }).click();
+  await page.getByPlaceholder('01712345678').fill(karim.phone);
+  await page.getByPlaceholder('0.00').fill('4000');
+  await page.getByRole('button', { name: 'Review and send' }).click();
+  await page.getByPlaceholder('••••').fill(PIN);
+  await page.getByRole('button', { name: /^Send ৳/ }).click();
+
+  // The countdown is running and the money has NOT left.
+  await expect(page.getByTestId('undo-countdown')).toBeVisible();
+  await page.getByRole('button', { name: 'Undo' }).click();
+
+  await expect(page.getByText('Cancelled. No request was ever sent, so there is nothing to reverse.')).toBeVisible();
+  await expect(page.getByTestId('undo-countdown')).toBeHidden();
+
+  // Nothing was sent, so the balance is untouched and there is no transaction to find.
+  await page.getByRole('link', { name: 'Overview', exact: true }).click();
+  await expect(page.getByText('৳100,000.00')).toBeVisible();
+
+  await page.getByRole('link', { name: 'Transactions', exact: true }).click();
+  await expect(page.getByText('৳4,000.00')).toBeHidden();
+});
+
 test('the recipient can be asked for money, and paying settles it in one step', async ({ page }) => {
   const rahim = await register(page, 'Rahim Payer');
   await signOut(page);

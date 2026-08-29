@@ -547,6 +547,21 @@ td {
   box-shadow: var(--shadow);
 }
 
+.progress {
+  height: 5px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 10%);
+  overflow: hidden;
+  margin-top: 10px;
+}
+
+.progress-bar {
+  height: 100%;
+  background: var(--info);
+  /* Matches the tick interval, so the bar glides instead of stepping. */
+  transition: width 50ms linear;
+}
+
 .spin {
   width: 16px;
   height: 16px;

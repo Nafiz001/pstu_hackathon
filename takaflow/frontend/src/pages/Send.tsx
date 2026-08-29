@@ -2,6 +2,13 @@ import { useState } from 'react';
 import { ApiError, endpoints, newIdempotencyKey, type Money } from '../lib/api';
 import { useApp } from '../lib/app-state';
 import { AmountInput, Banner, Card, ErrorBanner, Field, PinPrompt, Spinner } from '../components/ui';
+import { UndoCountdown } from '../components/UndoCountdown';
+
+/** Poisha to taka for display. Integer arithmetic — the UI does not get to use floats either. */
+const formatMinor = (minor: string): string => {
+  const value = BigInt(minor || '0');
+  return `${(value / 100n).toLocaleString()}.${(value % 100n).toString().padStart(2, '0')}`;
+};
 
 interface Sent {
   reference: string;
@@ -19,6 +26,14 @@ export function SendPage() {
   const [lookupError, setLookupError] = useState<string | null>(null);
   const [askPin, setAskPin] = useState(false);
   const [busy, setBusy] = useState(false);
+  /**
+   * The authorised-but-not-yet-sent payment.
+   *
+   * The PIN lives here for the length of the countdown and nowhere else: it is never written to
+   * storage, never logged, and is dropped the moment the payment resolves or is undone.
+   */
+  const [pending, setPending] = useState<{ pin: string } | null>(null);
+  const [undone, setUndone] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const [sent, setSent] = useState<Sent | null>(null);
 
@@ -48,6 +63,7 @@ export function SendPage() {
   const send = async (pin: string) => {
     setBusy(true);
     setError(null);
+    setPending(null);
     try {
       const result = await endpoints.send(
         { toPhone: phone, amountMinor, pin, ...(note ? { note } : {}) },
@@ -90,6 +106,21 @@ export function SendPage() {
       <div className="grid two">
         <Card>
           <ErrorBanner error={error} />
+          {pending && (
+            <UndoCountdown
+              label={`Sending ৳${formatMinor(amountMinor)} to ${payee?.name ?? phone}`}
+              onElapsed={() => void send(pending.pin)}
+              onUndo={() => {
+                setPending(null);
+                setUndone(true);
+              }}
+            />
+          )}
+          {undone && (
+            <Banner kind="info">
+              Cancelled. No request was ever sent, so there is nothing to reverse.
+            </Banner>
+          )}
           {sent && (
             <Banner kind="success">
               Sent ৳{sent.amount.formatted}. Reference <span className="mono">{sent.reference}</span>.
@@ -125,7 +156,7 @@ export function SendPage() {
               <input value={note} onChange={(event) => setNote(event.target.value.slice(0, 140))} placeholder="Lunch" />
             </Field>
 
-            <button type="submit" disabled={!canSend || busy}>
+            <button type="submit" disabled={!canSend || busy || pending !== null}>
               {busy ? <Spinner /> : 'Review and send'}
             </button>
           </form>
@@ -157,9 +188,16 @@ export function SendPage() {
       {askPin && (
         <PinPrompt
           title="Confirm payment"
-          confirmLabel={`Send ৳${(BigInt(amountMinor) / 100n).toString()}.${(BigInt(amountMinor) % 100n).toString().padStart(2, '0')}`}
+          confirmLabel={`Send ৳${formatMinor(amountMinor)}`}
           busy={busy}
-          onConfirm={send}
+          onConfirm={(pin) => {
+            // Authorised, not yet sent. The countdown below is the last chance to change your
+            // mind before anything reaches the server.
+            setAskPin(false);
+            setUndone(false);
+            setSent(null);
+            setPending({ pin });
+          }}
           onCancel={() => setAskPin(false)}
         >
           <p className="muted" style={{ marginTop: 0 }}>
