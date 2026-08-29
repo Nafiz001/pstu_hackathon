@@ -8,6 +8,7 @@
 import { useState } from 'react';
 import { call, SCENARIOS, type Step } from '../lib/demo';
 import { Badge, Card, ErrorBanner, Field, Spinner } from '../components/ui';
+import { SharedWalletPreview } from '../components/SharedWalletPreview';
 
 type RunState = 'idle' | 'running' | 'ok' | 'fail';
 
@@ -226,6 +227,19 @@ export function JudgePage() {
           );
         })}
       </div>
+
+      <div className="page-head" style={{ marginTop: 32 }}>
+        <div>
+          <h1 style={{ fontSize: '1.15rem' }}>Designed, not built</h1>
+          <p>
+            Below the line: a feature that exists as a design and a mockup only. It calls nothing
+            and proves nothing — it is here so the thinking is visible without pretending the code
+            is.
+          </p>
+        </div>
+      </div>
+
+      <SharedWalletPreview />
     </>
   );
 }

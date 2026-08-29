@@ -35,3 +35,34 @@ test('the console refuses the wrong password', async ({ page }) => {
   await expect(page.getByText('Invalid operator credentials')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Judge console' })).toBeHidden();
 });
+
+test('the shared wallet preview is interactive and clearly labelled as unbuilt', async ({ page }) => {
+  await page.goto('/judge');
+  await page.getByLabel('Username').fill('judge');
+  await page.getByLabel('Password').fill('takaflow-demo-2026');
+  await page.getByRole('button', { name: 'Sign in' }).click();
+
+  const preview = page.locator('.card.preview');
+  await expect(preview).toContainText('design preview · not built');
+  await expect(preview).toContainText('1/5 approved');
+
+  // The claim that matters: this mockup talks to nothing. Anything it sent would make it look
+  // like the other scenarios, which report what a server actually did.
+  const apiCalls: string[] = [];
+  page.on('request', (request) => {
+    if (request.url().includes('/api/v1')) apiCalls.push(request.url());
+  });
+
+  // Approving as the four remaining members drives it to unanimity.
+  for (const name of ['Karim', 'Salma', 'Nabil', 'Tania']) {
+    await preview.getByRole('button', { name: `Approve as ${name}` }).click();
+  }
+
+  await expect(preview).toContainText('5/5 approved');
+  await expect(preview).toContainText('EXECUTED');
+  expect(apiCalls, `the preview must not call the API, but it called ${apiCalls.join(', ')}`).toEqual([]);
+
+  await preview.getByRole('button', { name: 'Reset' }).click();
+  await expect(preview).toContainText('1/5 approved');
+  await expect(preview).toContainText('PENDING');
+});

@@ -596,6 +596,25 @@ td {
   transition: width 50ms linear;
 }
 
+/* A design preview is not evidence, and must not look like it. */
+.card.preview {
+  border-style: dashed;
+  border-color: rgb(242 181 68 / 45%);
+  background: linear-gradient(180deg, rgb(242 181 68 / 5%), transparent 40%), var(--surface);
+}
+
+.schema {
+  margin: 0;
+  padding: 12px 14px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow-x: auto;
+  font-size: 0.78rem;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
 .toast {
   position: fixed;
   right: 22px;
