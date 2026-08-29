@@ -1,4 +1,4 @@
-import { Link, NavLink, Navigate, Route, Routes } from 'react-router-dom';
+import { Link, NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { useApp } from './lib/app-state';
 import { AuthPage } from './pages/Auth';
 import { DashboardPage } from './pages/Dashboard';
@@ -9,6 +9,7 @@ import { SplitsPage } from './pages/Splits';
 import { SchedulesPage } from './pages/Schedules';
 import { EngineeringPage } from './pages/Engineering';
 import { SettingsPage } from './pages/Settings';
+import { JudgePage } from './pages/Judge';
 import { Spinner } from './components/ui';
 
 const LINKS = [
@@ -24,6 +25,22 @@ const LINKS = [
 
 export default function App() {
   const { user, account, loading, signOut } = useApp();
+  const location = useLocation();
+
+  /**
+   * The judge console stands apart from the app.
+   *
+   * It has its own operator sign-in and creates the users it needs, so it must be reachable
+   * without a customer session — a judge should not have to register an account to watch the
+   * system prove itself.
+   */
+  if (location.pathname === '/judge') {
+    return (
+      <div className="main" style={{ margin: '0 auto' }}>
+        <JudgePage />
+      </div>
+    );
+  }
 
   if (loading) {
     return (

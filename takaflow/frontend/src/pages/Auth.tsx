@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useApp } from '../lib/app-state';
 import { Card, ErrorBanner, Field, Spinner } from '../components/ui';
 
@@ -99,6 +99,10 @@ export function AuthPage() {
             {busy ? <Spinner /> : mode === 'signin' ? 'Sign in' : 'Create account'}
           </button>
         </form>
+
+        <p className="hint" style={{ marginTop: 16, textAlign: 'center' }}>
+          Judging this? <Link to="/judge">Open the judge console →</Link>
+        </p>
 
         {mode === 'signup' && (
           <p className="hint" style={{ marginTop: 14 }}>

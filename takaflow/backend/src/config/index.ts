@@ -86,6 +86,12 @@ const schema = z.object({
    * about being a shared secret rather than pretending to be more.
    */
   ADMIN_API_TOKEN: z.string().min(16).optional(),
+  /**
+   * Credentials for the operator console. They are exchanged for the token above, so the token
+   * itself never has to be typed into a browser or pasted into a demo.
+   */
+  ADMIN_USERNAME: z.string().min(3).default('judge'),
+  ADMIN_PASSWORD: z.string().min(8).default('takaflow-demo-2026'),
 
   /**
    * Velocity limiting: at most this many person-initiated transfers per account per window.

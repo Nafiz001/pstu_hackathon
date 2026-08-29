@@ -22,6 +22,8 @@ x-api-env: &api-env
   REDIS_URL: redis://redis:6379
   # Operator endpoints fail closed without this. A demo value, and it is not pretending otherwise.
   ADMIN_API_TOKEN: local-operator-token-change-me
+  ADMIN_USERNAME: judge
+  ADMIN_PASSWORD: takaflow-demo-2026
 
 services:
   db:

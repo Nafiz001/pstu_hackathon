@@ -16,8 +16,43 @@ import { expireRequests } from '../../workers/request-expiry.worker.js';
 import { drainSchedules } from '../../workers/schedule.worker.js';
 import * as adminService from './admin.service.js';
 import { getVelocityPolicy, setVelocityPolicy } from '../transfers/velocity.service.js';
+import { config } from '../../config/index.js';
+import { errors } from '../../platform/errors/index.js';
+import { timingSafeEqual } from 'node:crypto';
 
 export async function adminRoutes(app: FastifyInstance): Promise<void> {
+  /**
+   * Exchange operator credentials for the operator token.
+   *
+   * The console needs the token to call the guarded endpoints, and nobody should be typing a
+   * shared secret into a browser. Both fields are compared in constant time, and the whole
+   * endpoint refuses to work at all when no token is configured — it cannot hand out what does
+   * not exist.
+   */
+  app.post('/admin/login', async (request, reply) => {
+    const { username, password } = z
+      .object({ username: z.string().max(64), password: z.string().max(200) })
+      .parse(request.body);
+
+    if (!config.ADMIN_API_TOKEN) {
+      throw errors.unavailable('Operator API is not configured on this instance');
+    }
+
+    const matches = (presented: string, expected: string): boolean => {
+      const a = Buffer.from(presented);
+      const b = Buffer.from(expected);
+      return a.length === b.length && timingSafeEqual(a, b);
+    };
+
+    // Both are checked even when the first fails, so the response time says nothing about which
+    // half was wrong.
+    const userOk = matches(username, config.ADMIN_USERNAME);
+    const passOk = matches(password, config.ADMIN_PASSWORD);
+    if (!userOk || !passOk) throw errors.unauthenticated('Invalid operator credentials');
+
+    return reply.send({ token: config.ADMIN_API_TOKEN, username: config.ADMIN_USERNAME });
+  });
+
   app.get('/admin/reconciliation', async (_request, reply) => {
     const report = await reconcile();
     // A failing invariant is a server-side emergency, and the status code should say so to any
@@ -151,6 +186,27 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
     return reply.send({
       policy: { ...policy, alertThresholdMinor: policy.alertThresholdMinor.toString() },
     });
+  });
+
+  /**
+   * Bring a schedule's next run forward to now.
+   *
+   * A demo affordance, and an operator one: a scheduled payment that is stuck can be nudged
+   * without touching the database by hand. It does NOT pay anything — it only makes the
+   * occurrence due, so the worker's own duplicate suppression still decides what happens.
+   */
+  app.post('/admin/schedules/:id/due', { preHandler: requireAdmin }, async (request, reply) => {
+    const { id } = z.object({ id: z.string().uuid() }).parse(request.params);
+
+    const { rowCount } = await query(
+      `UPDATE scheduled_transfers
+          SET next_run_at = now() - interval '1 second', retry_after = NULL
+        WHERE id = $1 AND status = 'ACTIVE'`,
+      [id],
+    );
+    if ((rowCount ?? 0) === 0) throw errors.notFound('Active schedule');
+
+    return reply.send({ ok: true });
   });
 
   app.get('/notifications', { preHandler: requireAuth }, async (request, reply) => {
