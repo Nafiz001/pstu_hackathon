@@ -2,13 +2,16 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { contextOf, currentUser, requireAuth } from '../../platform/http/context.js';
 import { requireIdempotencyKey } from '../../platform/idempotency/store.js';
+import { requireActiveAccount } from '../../platform/http/guards.js';
 import { createScheduleSchema, listSchedulesSchema } from './schedule.schemas.js';
 import * as service from './schedule.service.js';
 
 const idParam = z.object({ id: z.string().uuid('Not a valid schedule id') });
 
 export async function scheduleRoutes(app: FastifyInstance): Promise<void> {
-  app.post('/schedules', { preHandler: requireAuth }, async (request, reply) => {
+  // Creating a schedule authorises future payments, so a frozen account may not create one.
+  // (The worker re-checks at run time too: freezing later stops the payments it already owns.)
+  app.post('/schedules', { preHandler: [requireAuth, requireActiveAccount] }, async (request, reply) => {
     const user = currentUser(request);
     const idempotencyKey = requireIdempotencyKey(request.headers['idempotency-key']);
     const input = createScheduleSchema.parse(request.body);

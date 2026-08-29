@@ -6,6 +6,7 @@ import { createTransferSchema } from './transfer.schemas.js';
 import * as service from './transfer.service.js';
 import * as history from './history.service.js';
 import * as reversal from './reversal.service.js';
+import { requireActiveAccount } from '../../platform/http/guards.js';
 import { statementFilename, statementStream } from './statement.service.js';
 import { findAccountByUserId } from '../auth/auth.repo.js';
 import { errors } from '../../platform/errors/index.js';
@@ -17,7 +18,7 @@ const referenceParam = z.object({
 const pinBody = z.object({ pin: z.string().regex(/^\d{4}$/, 'PIN must be exactly 4 digits') });
 
 export async function transferRoutes(app: FastifyInstance): Promise<void> {
-  app.post('/transfers', { preHandler: requireAuth }, async (request, reply) => {
+  app.post('/transfers', { preHandler: [requireAuth, requireActiveAccount] }, async (request, reply) => {
     const user = currentUser(request);
     const idempotencyKey = requireIdempotencyKey(request.headers['idempotency-key']);
     const input = createTransferSchema.parse(request.body);
@@ -83,7 +84,7 @@ export async function transferRoutes(app: FastifyInstance): Promise<void> {
     return reply.send(statementStream(window));
   });
 
-  app.post('/transfers/:reference/reverse', { preHandler: requireAuth }, async (request, reply) => {
+  app.post('/transfers/:reference/reverse', { preHandler: [requireAuth, requireActiveAccount] }, async (request, reply) => {
     const user = currentUser(request);
     const { reference } = referenceParam.parse(request.params);
     const idempotencyKey = requireIdempotencyKey(request.headers['idempotency-key']);

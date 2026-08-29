@@ -186,6 +186,30 @@ export async function handleEvent(tx: Tx, event: OutboxEventRecord): Promise<num
       return 1;
     }
 
+    /**
+     * A freeze is worth a notification precisely because the person who triggered it might not
+     * be the account's owner: if a thief freezes or unfreezes it, the owner finds out.
+     */
+    case 'ACCOUNT_FROZEN':
+    case 'ACCOUNT_UNFROZEN': {
+      const userId = str(p, 'userId');
+      if (!userId) return 0;
+
+      const froze = event.eventType === 'ACCOUNT_FROZEN';
+      await notify(tx, {
+        userId,
+        eventId: event.id,
+        type: event.eventType,
+        payload: {
+          title: froze ? 'Account frozen' : 'Account unfrozen',
+          body: froze
+            ? 'Outgoing payments are blocked until you unfreeze the account.'
+            : 'Your account can send money again.',
+        },
+      });
+      return 1;
+    }
+
     default:
       return 0;
   }

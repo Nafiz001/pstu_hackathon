@@ -103,7 +103,7 @@ async function refreshSession(): Promise<boolean> {
 }
 
 export interface RequestOptions {
-  method?: 'GET' | 'POST' | 'DELETE';
+  method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
   body?: unknown;
   /** Supply to make a retry idempotent; generated automatically for POST/DELETE when omitted. */
   idempotencyKey?: string;
@@ -317,6 +317,13 @@ export const endpoints = {
   identity: () => api<{ user: { id: string; phone: string; name: string } }>('/me'),
 
   me: () => api<{ account: AccountView }>('/accounts/me'),
+
+  /** Emergency freeze. Freezing needs nothing; unfreezing needs the PIN. */
+  setFreeze: (frozen: boolean, pin?: string) =>
+    api<{ account: AccountView & { frozen: boolean } }>('/accounts/me/freeze', {
+      method: 'PATCH',
+      body: { frozen, ...(pin ? { pin } : {}) },
+    }),
 
   findUser: (phone: string) =>
     api<{ user: { id: string; name: string; phone: string; isSelf: boolean } }>(

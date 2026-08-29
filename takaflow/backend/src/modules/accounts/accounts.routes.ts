@@ -4,12 +4,13 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { query } from '../../platform/db/pool.js';
-import { currentUser, requireAuth } from '../../platform/http/context.js';
+import { contextOf, currentUser, requireAuth } from '../../platform/http/context.js';
 import { errors } from '../../platform/errors/index.js';
 import { readBalance, writeBalance } from '../../platform/cache/balance.cache.js';
 import { money, toMinor } from '../../shared/money.js';
 import { phoneSchema } from '../auth/auth.schemas.js';
 import * as authRepo from '../auth/auth.repo.js';
+import { setOwnFreeze } from './account.service.js';
 
 const searchSchema = z.object({ q: phoneSchema });
 
@@ -61,6 +62,22 @@ export async function accountRoutes(app: FastifyInstance): Promise<void> {
         servedFromCache: useCache,
       },
     });
+  });
+
+  /**
+   * The emergency freeze toggle.
+   *
+   * PATCH, because it changes one field of an existing resource. Freezing needs nothing but the
+   * session; unfreezing needs the PIN — see account.service.ts for why they are asymmetric.
+   */
+  app.patch('/accounts/me/freeze', { preHandler: requireAuth }, async (request, reply) => {
+    const { id } = currentUser(request);
+    const { frozen, pin } = z
+      .object({ frozen: z.boolean(), pin: z.string().regex(/^\d{4}$/).optional() })
+      .parse(request.body);
+
+    const account = await setOwnFreeze(id, frozen, pin, contextOf(request));
+    return reply.send({ account });
   });
 
   /**

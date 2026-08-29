@@ -28,11 +28,13 @@ export type EventType =
   | 'TRANSFER_REVERSED'
   | 'SCHEDULE_PAID'
   | 'SCHEDULE_FAILED'
-  | 'SCHEDULE_SKIPPED';
+  | 'SCHEDULE_SKIPPED'
+  | 'ACCOUNT_FROZEN'
+  | 'ACCOUNT_UNFROZEN';
 
 export interface OutboxEvent {
   eventType: EventType;
-  aggregateType: 'user' | 'transfer' | 'money_request' | 'scheduled_transfer';
+  aggregateType: 'user' | 'transfer' | 'money_request' | 'scheduled_transfer' | 'account';
   aggregateId: string;
   payload: Record<string, unknown>;
 }

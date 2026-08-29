@@ -547,6 +547,40 @@ td {
   box-shadow: var(--shadow);
 }
 
+.toggle {
+  width: 54px;
+  height: 30px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  padding: 3px;
+  display: flex;
+  justify-content: flex-start;
+  transition: background 0.18s ease, border-color 0.18s ease;
+}
+
+.toggle.on {
+  background: rgb(242 85 90 / 30%);
+  border-color: var(--danger);
+  justify-content: flex-end;
+}
+
+.toggle .knob {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--muted);
+  transition: background 0.18s ease;
+}
+
+.toggle.on .knob {
+  background: var(--danger);
+}
+
+.card.frozen {
+  border-color: rgb(242 85 90 / 40%);
+}
+
 .progress {
   height: 5px;
   border-radius: 999px;

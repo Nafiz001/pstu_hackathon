@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { contextOf, currentUser, requireAuth } from '../../platform/http/context.js';
 import { requireIdempotencyKey } from '../../platform/idempotency/store.js';
+import { requireActiveAccount } from '../../platform/http/guards.js';
 import {
   acceptRequestSchema,
   createRequestSchema,
@@ -36,7 +37,8 @@ export async function requestRoutes(app: FastifyInstance): Promise<void> {
     return reply.send(await service.listRequests(user.id, query));
   });
 
-  app.post('/requests/:id/accept', { preHandler: requireAuth }, async (request, reply) => {
+  // Accepting a request pays it, so it is a money-out route like any other.
+  app.post('/requests/:id/accept', { preHandler: [requireAuth, requireActiveAccount] }, async (request, reply) => {
     const user = currentUser(request);
     const { id } = idParam.parse(request.params);
     const idempotencyKey = requireIdempotencyKey(request.headers['idempotency-key']);

@@ -35,6 +35,17 @@ async function register(page: Page, name: string): Promise<User> {
   return { phone, name };
 }
 
+/**
+ * The balance as shown on the overview card.
+ *
+ * Deliberately not `getByText('৳100,000.00')`: the same amount can legitimately appear in the
+ * activity list as well, and a locator that matches two things is a test that fails for reasons
+ * having nothing to do with the product.
+ */
+async function expectBalance(page: Page, formatted: string): Promise<void> {
+  await expect(page.locator('.balance .amount')).toHaveText(`৳${formatted}`);
+}
+
 async function signOut(page: Page): Promise<void> {
   await page.getByRole('button', { name: 'Sign out' }).click();
   await expect(page.getByRole('button', { name: 'Sign in' }).first()).toBeVisible();
@@ -50,7 +61,7 @@ async function signIn(page: Page, user: User): Promise<void> {
 test('a new account is funded by a real minted movement, not a typed-in number', async ({ page }) => {
   await register(page, 'Rahim Test');
 
-  await expect(page.getByText('৳100,000.00')).toBeVisible();
+  await expectBalance(page, '100,000.00');
 
   await page.getByRole('link', { name: 'Transactions', exact: true }).click();
   // The signup bonus appears as a MINT from the platform treasury, with a reference like any
@@ -83,7 +94,7 @@ test('sending money moves it, and both sides see the same movement', async ({ pa
   // And the recipient sees the same money arrive.
   await signOut(page);
   await signIn(page, karim);
-  await expect(page.getByText('৳102,500.00')).toBeVisible();
+  await expectBalance(page, '102,500.00');
   await expect(page.getByText('Rickshaw fare')).toBeVisible();
 });
 
@@ -108,10 +119,38 @@ test('the five-second undo window cancels before anything is sent', async ({ pag
 
   // Nothing was sent, so the balance is untouched and there is no transaction to find.
   await page.getByRole('link', { name: 'Overview', exact: true }).click();
-  await expect(page.getByText('৳100,000.00')).toBeVisible();
+  await expectBalance(page, '100,000.00');
 
   await page.getByRole('link', { name: 'Transactions', exact: true }).click();
   await expect(page.getByText('৳4,000.00')).toBeHidden();
+});
+
+test('the emergency freeze blocks outgoing money in one tap, and needs a PIN to lift', async ({ page }) => {
+  const karim = await register(page, 'Karim Bystander');
+  await signOut(page);
+  await register(page, 'Rahim Frozen');
+
+  await page.getByRole('link', { name: 'Settings', exact: true }).click();
+  await page.getByRole('switch', { name: 'Emergency freeze' }).click();
+
+  // Instant, no secret asked for, and visible on every page from now on.
+  await expect(page.getByText('Account is frozen', { exact: true })).toBeVisible();
+  await expect(page.getByText('Your account is frozen.')).toBeVisible();
+
+  // Sending is refused before it can even be attempted.
+  await page.getByRole('link', { name: 'Send', exact: true }).click();
+  await page.getByPlaceholder('01712345678').fill(karim.phone);
+  await page.getByPlaceholder('0.00').fill('100');
+  await expect(page.getByRole('button', { name: 'Account frozen' })).toBeDisabled();
+
+  // Lifting it costs the PIN.
+  await page.getByRole('link', { name: 'Settings', exact: true }).click();
+  await page.getByRole('switch', { name: 'Emergency freeze' }).click();
+  await page.getByPlaceholder('••••').fill(PIN);
+  await page.getByRole('button', { name: 'Unfreeze', exact: true }).click();
+
+  await expect(page.getByText('Account is active', { exact: true })).toBeVisible();
+  await expect(page.getByText('Your account is frozen.')).toBeHidden();
 });
 
 test('the recipient can be asked for money, and paying settles it in one step', async ({ page }) => {
@@ -142,7 +181,7 @@ test('the recipient can be asked for money, and paying settles it in one step', 
   await expect(page.getByText('accepted').first()).toBeVisible();
 
   await page.getByRole('link', { name: 'Overview', exact: true }).click();
-  await expect(page.getByText('৳98,800.00')).toBeVisible();
+  await expectBalance(page, '98,800.00');
 });
 
 test('a split divides a bill so the shares add up to it exactly', async ({ page }) => {
@@ -191,7 +230,7 @@ test('a schedule is stored as an instruction and moves no money until it is due'
 
   // Nothing has been paid — the balance is untouched.
   await page.getByRole('link', { name: 'Overview', exact: true }).click();
-  await expect(page.getByText('৳100,000.00')).toBeVisible();
+  await expectBalance(page, '100,000.00');
 
   // And it can be paused.
   await page.getByRole('link', { name: 'Scheduled', exact: true }).click();
@@ -215,7 +254,7 @@ test('the engineering panel proves idempotency in the browser', async ({ page })
   await expect(page.getByText('One payment, two identical responses.')).toBeVisible();
 
   await page.getByRole('link', { name: 'Overview', exact: true }).click();
-  await expect(page.getByText('৳99,999.00')).toBeVisible();
+  await expectBalance(page, '99,999.00');
 });
 
 test('the ledger still balances after everything above', async ({ page }) => {

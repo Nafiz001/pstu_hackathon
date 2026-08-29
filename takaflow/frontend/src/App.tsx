@@ -1,4 +1,4 @@
-import { NavLink, Navigate, Route, Routes } from 'react-router-dom';
+import { Link, NavLink, Navigate, Route, Routes } from 'react-router-dom';
 import { useApp } from './lib/app-state';
 import { AuthPage } from './pages/Auth';
 import { DashboardPage } from './pages/Dashboard';
@@ -8,6 +8,7 @@ import { HistoryPage } from './pages/History';
 import { SplitsPage } from './pages/Splits';
 import { SchedulesPage } from './pages/Schedules';
 import { EngineeringPage } from './pages/Engineering';
+import { SettingsPage } from './pages/Settings';
 import { Spinner } from './components/ui';
 
 const LINKS = [
@@ -18,10 +19,11 @@ const LINKS = [
   { to: '/schedules', label: 'Scheduled' },
   { to: '/history', label: 'Transactions' },
   { to: '/engineering', label: 'Engineering' },
+  { to: '/settings', label: 'Settings' },
 ];
 
 export default function App() {
-  const { user, loading, signOut } = useApp();
+  const { user, account, loading, signOut } = useApp();
 
   if (loading) {
     return (
@@ -60,6 +62,14 @@ export default function App() {
       </aside>
 
       <main className="main">
+        {/* Visible on every page: a frozen account is a state the user must not have to
+            rediscover by being refused. */}
+        {account?.status === 'FROZEN' && (
+          <div className="banner error">
+            <strong>Your account is frozen.</strong> Outgoing payments are blocked. Money can still
+            arrive. <Link to="/settings">Unfreeze in settings →</Link>
+          </div>
+        )}
         <Routes>
           <Route path="/" element={<DashboardPage />} />
           <Route path="/send" element={<SendPage />} />
@@ -68,6 +78,7 @@ export default function App() {
           <Route path="/schedules" element={<SchedulesPage />} />
           <Route path="/history" element={<HistoryPage />} />
           <Route path="/engineering" element={<EngineeringPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>

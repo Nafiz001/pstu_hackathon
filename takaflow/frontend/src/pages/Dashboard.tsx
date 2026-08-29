@@ -42,9 +42,15 @@ export function DashboardPage() {
           <h1>Hello, {user?.name?.split(' ')[0] ?? 'there'}</h1>
           <p>Everything below is derived from the ledger, never from a stored total.</p>
         </div>
-        <Link to="/send">
-          <button>Send money</button>
-        </Link>
+        {account?.status === 'FROZEN' ? (
+          <Link to="/settings">
+            <button className="secondary">Unfreeze to send</button>
+          </Link>
+        ) : (
+          <Link to="/send">
+            <button>Send money</button>
+          </Link>
+        )}
       </div>
 
       <ErrorBanner error={error} />

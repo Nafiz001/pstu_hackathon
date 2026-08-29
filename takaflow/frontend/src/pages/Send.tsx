@@ -92,7 +92,8 @@ export function SendPage() {
   };
 
   const amountValid = BigInt(amountMinor || '0') > 0n;
-  const canSend = phone.length === 11 && amountValid && payee !== null && !payee.isSelf;
+  const frozen = account?.status === 'FROZEN';
+  const canSend = phone.length === 11 && amountValid && payee !== null && !payee.isSelf && !frozen;
 
   return (
     <>
@@ -157,7 +158,7 @@ export function SendPage() {
             </Field>
 
             <button type="submit" disabled={!canSend || busy || pending !== null}>
-              {busy ? <Spinner /> : 'Review and send'}
+              {busy ? <Spinner /> : frozen ? 'Account frozen' : 'Review and send'}
             </button>
           </form>
         </Card>
